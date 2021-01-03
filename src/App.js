@@ -2,39 +2,21 @@ import './App.css';
 import React, {useState, useEffect} from 'react';
 import axios from 'axios';
 
-let fileChunks = [];
-
 function App() {
     const [link, setLink] = useState('');
-    const [downloadFinished, setDownloadFinished] = useState(0);
     const [ranges, setRanges] = useState([]);
     const download = () => {
         setRanges([]);
         if (!link.trim()) return alert("Link Can not be empty!");
+
         axios.get(`http://localhost:7000/?url=${link}`).then(res => {
-            fileChunks = (res.data.chunks);
             setRanges(res.data.ranges);
-            setDownloadFinished(new Date().getTime());
+            const myLink = document.createElement('a');
+            myLink.href = res.data.base64Link;
+            myLink.download = res.data.name;
+            myLink.click();
         }).then(console.log);
     };
-
-    function joinBase64Strings(base64Str1, base64Str2) {
-        const bothData = Buffer.from(base64Str1, 'base64').toString('binary')
-            + Buffer.from(base64Str2, 'base64').toString('binary');
-        const joinedBase64Result = Buffer.from(bothData.toString(), 'binary').toString('base64');
-        return joinedBase64Result;
-    }
-
-    useEffect(() => {
-        if (downloadFinished === 0) return;
-        let result = fileChunks.reduce((total, a) => joinBase64Strings(total, a));
-        const myLink = document.createElement('a');
-        let name = link;
-        if (name.includes('/')) name = name.split('/')[name.split('/').length - 1];
-        myLink.href='data:application/octet-stream;base64,' + result;
-        myLink.download = name;
-        myLink.click();
-    }, [downloadFinished]);
 
     return (
         <div className="App">
