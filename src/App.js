@@ -7,41 +7,33 @@ let fileChunks = [];
 function App() {
     const [link, setLink] = useState('');
     const [downloadFinished, setDownloadFinished] = useState(0);
-    const [completedChunks, setCompletedChunks] = useState([]);
     const [ranges, setRanges] = useState([]);
     const download = () => {
+        setRanges([]);
+        if (!link.trim()) return alert("Link Can not be empty!");
         axios.get(`http://localhost:7000/?url=${link}`).then(res => {
             fileChunks = (res.data.chunks);
+            setRanges(res.data.ranges);
             setDownloadFinished(new Date().getTime());
-        }).then(err => {
-
-        });
-        // axios.head(link).then(res => {
-        //     if (!res.headers['accept-ranges'] || res.headers['accept-ranges'] === 'none') return;
-        //     console.log("Started Downloading");
-        //     const length = Number(res.headers['content-length']);
-        //     const chunkSize = Math.round(length / 8);
-        //     const ranges = [0, 1, 2, 3, 4, 5, 6, 7].map(i => {
-        //         return `bytes=${i === 0 ? 0 : 1 + i * chunkSize}-${i === 7 ? length - 1 : ((i + 1) * chunkSize)}`
-        //     });
-        //     setRanges(ranges);
-        //     ranges.map((range, index) => {
-        //         axios.get(link, {headers: {'range': range}, responseType: 'blob'}).then(res => {
-        //             fileChunks[index] = res.data;
-        //             setCompletedChunks(completedChunks => [...completedChunks, index]);
-        //             console.log(completedChunks)
-        //             console.log(index);
-        //             setChunks(chunk => chunk + 1);
-        //         }).catch(err => {
-        //         });
-        //     });
-        // }).catch(err => {
-        // })
+        }).then(console.log);
     };
 
+    function joinBase64Strings(base64Str1, base64Str2) {
+        const bothData = Buffer.from(base64Str1, 'base64').toString('binary')
+            + Buffer.from(base64Str2, 'base64').toString('binary');
+        const joinedBase64Result = Buffer.from(bothData.toString(), 'binary').toString('base64');
+        return joinedBase64Result;
+    }
+
     useEffect(() => {
-        const webm = fileChunks.reduce((a, b) => new Blob([a, b]));
-        document.location.href = URL.createObjectURL(webm);
+        if (downloadFinished === 0) return;
+        let result = fileChunks.reduce((total, a) => joinBase64Strings(total, a));
+        const myLink = document.createElement('a');
+        let name = link;
+        if (name.includes('/')) name = name.split('/')[name.split('/').length - 1];
+        myLink.href='data:application/octet-stream;base64,' + result;
+        myLink.download = name;
+        myLink.click();
     }, [downloadFinished]);
 
     return (
@@ -55,16 +47,13 @@ function App() {
                     <tr>
                         <td width={80}>Thread</td>
                         <td>Range</td>
-                        <td width={100}>Status</td>
                     </tr>
                     {ranges.map((range, index) => (
                         <tr>
                             <td>{index}</td>
                             <td>{range}</td>
-                            <td>{completedChunks.includes(index) ? 'Done' : 'Downloading'}</td>
                         </tr>
                     ))}
-
                 </table>
             </div>
         </div>
